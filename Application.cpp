@@ -74,6 +74,10 @@ void Application::handleEvents() {
   SDL_Event event;
   SDL_PollEvent(&event);
   switch (event.type) {
+  case SDL_MOUSEBUTTONDOWN: {
+    std::cout << "Click!\n";
+    break;
+  }
   case SDL_QUIT:
     gameRunning = false;
     break;
@@ -110,8 +114,11 @@ void Application::handleEvents() {
     }
     }
     break;
-  default:
-    break;
+  default: {
+    int x, y;
+    Uint32 mouseCords = SDL_GetMouseState(&x, &y);
+    std::cout << "Mouse cords " << x << "," << y << std::endl;
+  } break;
   }
 }
 
