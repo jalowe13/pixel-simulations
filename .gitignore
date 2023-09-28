@@ -1,0 +1,12 @@
+
+//Initial Commit Project Ingnores
+.vscode
+.vs/
+Debug
+*.mp4
+*.o
+*.zip
+*.lnk
+*.zip
+*.exe
+*.png
