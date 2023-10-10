@@ -11,6 +11,14 @@ uint32_t linux_tick() {
 }
 #endif
 
+void Application::setRefreshRate() {
+  DEVMODE dm;
+  dm.dmSize = sizeof(dm);
+  EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dm);
+  this->fps = dm.dmDisplayFrequency;
+  std::cout << "Refresh Rate: " << this->fps << std::endl;
+}
+
 Application::Application() {
   std::cout << "-----Application Created\n";
   gameRunning = true;
@@ -19,6 +27,7 @@ Application::Application() {
 #ifdef _WIN32
   startTime = GetTickCount();
   endTime = GetTickCount();
+  setRefreshRate();
 #else
   startTime = linux_tick();
   endTime = linux_tick();
@@ -75,7 +84,11 @@ void Application::handleEvents() {
   SDL_PollEvent(&event);
   switch (event.type) {
   case SDL_MOUSEBUTTONDOWN: {
-    std::cout << "Click!\n";
+    // Handle mouse button down
+    int x, y;
+    Uint32 mouseCords = SDL_GetMouseState(&x, &y);
+    std::cout << "Mouse cords " << x << "," << y << std::endl;
+    // std::cout << "Click!\n";
     break;
   }
   case SDL_QUIT:
@@ -111,26 +124,36 @@ void Application::handleEvents() {
       break;
     }
     case SDLK_KP_2: {
+    } break;
     }
-    }
-    break;
-  default: {
-    int x, y;
-    Uint32 mouseCords = SDL_GetMouseState(&x, &y);
-    std::cout << "Mouse cords " << x << "," << y << std::endl;
-  } break;
   }
 }
 
 void Application::update() // Update Logic
 {
   // Logic --> Physics --> Render
+  for (auto &p : pixels) {
+    p.update();
+    if ((p.getLife() == 0) && !p.getDone()) { // If pixel done
+      p.setDone(true);
+      green++;
+      red--;
+    }
+  }
 }
 
 void Application::render() {
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer); // Clear Screen
   // C++ Unique Pointers, References and Ownership
-
+  Pixel pixel((rand() % SCREEN_WIDTH + 1), (rand() % SCREEN_HEIGHT + 1),
+              renderer);
+  red++;
+  std::cout << "Red[" << red << "] Green[" << green << "]\r";
+  pixels.push_back(pixel);
+  for (auto &p : pixels) {
+    p.render();
+  }
   SDL_RenderPresent(renderer);
 }
 
