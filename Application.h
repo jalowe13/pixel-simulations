@@ -3,15 +3,19 @@
 
 // Version Number
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 5
+#define VERSION_MINOR 6
 #define VERSION_PATCH
 #define VERSION_ALT
 #define STR_HELPER(x) #x // convert to fit window title
 #define STR(x) STR_HELPER(x)
 
 // Screen Definitions
-#define SCREEN_WIDTH 1600
-#define SCREEN_HEIGHT 900
+// #define SCREEN_WIDTH 1920
+// #define SCREEN_HEIGHT 1080
+// #define SCREEN_WIDTH 1600
+// #define SCREEN_HEIGHT 900
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -40,7 +44,8 @@ class Physics;
 class Pixel {
 public:
   bool isEmpty;
-  int life = rand() % 8640;
+  // int life = rand() % 8640;
+  int life = INT_MAX;
   int clean = 60;
   int x, y;
   int l = (rand() % 2) + 1;
@@ -61,6 +66,8 @@ public:
   int getLife() { return life; }
   bool getDone() { return done; }
   bool checkEmpty() { return isEmpty; }
+  int detectScare();
+  void moveDirection(int i); // Move a specific inputted direction
   void render(SDL_Renderer *renderer);
   void update();
 };
@@ -81,6 +88,8 @@ public:
   SDL_Renderer *getRenderer() { return renderer; }
   const int getScreenWidth() { return SCREEN_WIDTH; }
   const int getScreenHeight() { return SCREEN_HEIGHT; }
+  int getXMouse() { return xMouse; }
+  int getYMouse() { return yMouse; }
   void setWindow(SDL_Window *new_window) { window = new_window; }
   void setSurface(SDL_Surface *new_surface) { surface = new_surface; }
   void setRenderer(SDL_Renderer *new_renderer) { renderer = new_renderer; }
@@ -101,7 +110,6 @@ public:
   bool running() { return gameRunning; }
 
   // Getters
-  // const std::vector<Pixel> &getPixels() const { return pixels; }
 
   // Text Events
   void createText(const char *text, int x, int y);
@@ -111,11 +119,13 @@ public:
   int red = 0;
   int green = 0;
   int total = 0;
-  const int max_pixels = 500;
+  const int max_pixels = 1000;
 
   // Constants for reference
 
+  // Debug and Toggles
   bool debugMode = false;
+  bool collisionMode = false;
 
   int textureWidth = 1920;
   int textureHeight = 32;
@@ -140,6 +150,10 @@ private:
 
   // Screen
   Pixel screen[SCREEN_WIDTH][SCREEN_HEIGHT];
+
+  // Mouse Cords
+  int xMouse;
+  int yMouse;
 
   // Pixels
   std::vector<Pixel> pixels;

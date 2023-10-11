@@ -11,6 +11,58 @@ void Pixel::render(SDL_Renderer *renderer) {
   }
   SDL_RenderDrawPoint(renderer, x, y);
 }
+int Pixel::detectScare() {
+  int x, y;
+  Uint32 mouseCords = SDL_GetMouseState(&x, &y);
+
+  // Mouse Left of Pixel
+  if (((x - this->x) > 0) && ((x - this->x) <= 20) &&
+      (abs(y - this->y) <= 20)) {
+    return 0;
+  }
+  // Mouse Below Pixel
+  if (((y - this->y) > 0) && ((y - this->y) <= 20) &&
+      (abs(x - this->x) <= 20)) {
+    return 3;
+  }
+  // Mouse Right of Pixel
+  if (((this->x - x) > 0) && ((this->x - x) <= 20) &&
+      (abs(y - this->y) <= 20)) {
+    return 1;
+  }
+  // Mouse Above Pixel
+  if (((this->y - y) > 0) && ((this->y - y) <= 20) &&
+      (abs(x - this->x) <= 20)) {
+    return 2;
+  }
+  return 4;
+}
+void Pixel::moveDirection(int i) {
+  switch (i) {
+  case (0): // Move right
+    if ((x + l) < SCREEN_WIDTH) {
+      x = x + l;
+    }
+    break;
+  case (1): // Move left
+    if ((x - l) >= 0) {
+      x = x - l;
+    }
+    break;
+  case (2): // Move down
+    if ((y + l) < SCREEN_HEIGHT) {
+      y = y + l;
+    }
+    break;
+  case (3): // Move up
+    if ((y - l) >= 0) {
+      y = y - l;
+    }
+    break;
+  case (4): // Random
+    moveDirection(rand() % 4);
+  }
+}
 void Pixel::update() {
   if (life > 0) {
     if (sway >= 60) {
@@ -18,29 +70,8 @@ void Pixel::update() {
       sway = 0;
     }
     sway++;
-    int f = rand() % 4;
-    switch (f) {
-    case (0):
-      if ((x + l) < SCREEN_WIDTH) {
-        x = x + l;
-      }
-      break;
-    case (1):
-      if ((x - l) >= 0) {
-        x = x - l;
-      }
-      break;
-    case (2):
-      if ((y + l) < SCREEN_HEIGHT) {
-        y = y + l;
-      }
-      break;
-    case (3):
-      if ((y - l) >= 0) {
-        y = y - l;
-      }
-      break;
-    }
+    int f = detectScare();
+    moveDirection(f);
     life--;
   } else {
     if (clean > 0) {
@@ -141,6 +172,10 @@ void Application::handleEvents() {
   SDL_Event event;
   SDL_PollEvent(&event);
   switch (event.type) {
+  case SDL_MOUSEMOTION:
+    SDL_GetMouseState(&xMouse, &yMouse);
+    // std::cout << "x" << xMouse << "y" << yMouse << std::endl;
+    break;
   case SDL_MOUSEBUTTONDOWN: {
     mouseDown = true;
     break;
@@ -168,6 +203,9 @@ void Application::handleEvents() {
     case SDLK_d: {
       break;
     }
+    case SDLK_c: {
+      collisionMode = collisionMode ? false : true;
+    }
     // Debug Mode Toggle
     case SDLK_BACKQUOTE: {
       debugMode = (debugMode) ? false : true;
@@ -190,6 +228,9 @@ void Application::update() // Update Logic
 {
   // Logic --> Physics --> Render
   spawnPixel();
+  for (auto &p : pixels) {
+    p.detectScare();
+  }
   checkPixelCollisions();
 }
 
@@ -229,8 +270,10 @@ void Application::checkPixelCollisions() {
       if (screen[x][y].checkEmpty()) { // Check if new position is empty
         screen[x][y] = p1;
       } else { // If there is a pixel there set both lifes to 0 (COLLIDE)
-        p1.life = 0;
-        screen[x][y].life = 0;
+        if (collisionMode) {
+          p1.life = 0;
+          screen[x][y].life = 0;
+        }
       }
       if ((p1.getLife() == 0) && !p1.getDone()) { // If pixel done
         p1.setDone(true);
@@ -245,7 +288,8 @@ void Application::render() {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer); // Clear Screen
   // C++ Unique Pointers, References and Ownership
-  std::cout << "Red[" << red << "] Green[" << green << "]"
+  std::cout << "Collision Mode:" << collisionMode << " Red[" << red
+            << "] Green[" << green << "]"
             << "Total[" << total << "]\r";
 
   for (auto &p : pixels) {
