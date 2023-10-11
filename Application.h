@@ -3,15 +3,15 @@
 
 // Version Number
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 4
+#define VERSION_MINOR 5
 #define VERSION_PATCH
 #define VERSION_ALT
 #define STR_HELPER(x) #x // convert to fit window title
 #define STR(x) STR_HELPER(x)
 
 // Screen Definitions
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 1600
+#define SCREEN_HEIGHT 900
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -43,7 +43,7 @@ public:
   int life = rand() % 8640;
   int clean = 60;
   int x, y;
-  int l = rand() % 2;
+  int l = (rand() % 2) + 1;
   int sway = 0;
   bool done = false;
   Pixel() { isEmpty = true; }
@@ -85,8 +85,12 @@ public:
   void setSurface(SDL_Surface *new_surface) { surface = new_surface; }
   void setRenderer(SDL_Renderer *new_renderer) { renderer = new_renderer; }
 
-  // Check collisions between pixels on this frame
-  void checkPixelCollisions();
+  // Collisions
+  bool checkBounds(int x, int y); // Check if outside of screen
+  void checkPixelCollisions(); // Check collisions between pixels on this frame
+
+  // Pixel Creation
+  void spawnPixel();
 
   // Events
   bool init();
@@ -106,7 +110,8 @@ public:
   // Pixel Stats
   int red = 0;
   int green = 0;
-  const int max_pixels = 2023;
+  int total = 0;
+  const int max_pixels = 500;
 
   // Constants for reference
 
@@ -129,6 +134,9 @@ private:
   SDL_Surface *surface_temp = NULL;
 
   Terrain *terrain_gen = nullptr; // Terrain Generation
+
+  // Buttons
+  bool mouseDown = false;
 
   // Screen
   Pixel screen[SCREEN_WIDTH][SCREEN_HEIGHT];

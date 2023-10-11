@@ -14,11 +14,11 @@ void Pixel::render(SDL_Renderer *renderer) {
 void Pixel::update() {
   if (life > 0) {
     if (sway >= 60) {
-      l = rand() % 3;
+      l = (rand() % 2) + 1;
       sway = 0;
     }
     sway++;
-    int f = rand() % 2;
+    int f = rand() % 4;
     switch (f) {
     case (0):
       if ((x + l) < SCREEN_WIDTH) {
@@ -28,6 +28,16 @@ void Pixel::update() {
     case (1):
       if ((x - l) >= 0) {
         x = x - l;
+      }
+      break;
+    case (2):
+      if ((y + l) < SCREEN_HEIGHT) {
+        y = y + l;
+      }
+      break;
+    case (3):
+      if ((y - l) >= 0) {
+        y = y - l;
       }
       break;
     }
@@ -88,9 +98,9 @@ bool Application::init() {
   try {
     if (SDL_Init(SDL_INIT_EVERYTHING) == 0) {
       std::cout << "-----SDL Init Done" << std::endl;
-      window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_CENTERED,
-                                SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH,
-                                SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+      window = SDL_CreateWindow(
+          windowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+          SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
       if (!window) {
         throw "Window creation failed!";
@@ -132,13 +142,12 @@ void Application::handleEvents() {
   SDL_PollEvent(&event);
   switch (event.type) {
   case SDL_MOUSEBUTTONDOWN: {
-    // Handle mouse button down
-    int x, y;
-    Uint32 mouseCords = SDL_GetMouseState(&x, &y);
-    std::cout << "Mouse cords " << x << "," << y << std::endl;
-    // std::cout << "Click!\n";
+    mouseDown = true;
     break;
   }
+  case SDL_MOUSEBUTTONUP:
+    mouseDown = false;
+    break;
   case SDL_QUIT:
     gameRunning = false;
     break;
@@ -180,7 +189,28 @@ void Application::handleEvents() {
 void Application::update() // Update Logic
 {
   // Logic --> Physics --> Render
+  spawnPixel();
   checkPixelCollisions();
+}
+
+void Application::spawnPixel() {
+  if (mouseDown) {
+    int x, y;
+    Uint32 mouseCords = SDL_GetMouseState(&x, &y);
+    Pixel pixel(x, y);
+    pixels.push_back(pixel);
+    red++;
+    total++;
+  } else if (pixels.size() < max_pixels) {
+    Pixel pixel((rand() % (SCREEN_WIDTH + 1)), (rand() % (SCREEN_HEIGHT + 1)));
+    pixels.push_back(pixel);
+    red++;
+    total++;
+  }
+}
+
+bool Application::checkBounds(int x, int y) {
+  return ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= y) && (y < SCREEN_HEIGHT));
 }
 
 void Application::checkPixelCollisions() {
@@ -194,9 +224,7 @@ void Application::checkPixelCollisions() {
     int y = p1.getY();
 
     // Screen bounds check
-    if (((0 <= x) && (x < SCREEN_WIDTH) && (0 <= y) && (y < SCREEN_HEIGHT)) &&
-        ((0 <= old_x) && (old_x < SCREEN_WIDTH) && (0 <= old_y) &&
-         (old_y < SCREEN_HEIGHT))) {
+    if (checkBounds(x, y) && checkBounds(old_x, old_y)) {
       screen[old_x][old_y].setEmpty(true);
       if (screen[x][y].checkEmpty()) { // Check if new position is empty
         screen[x][y] = p1;
@@ -217,12 +245,8 @@ void Application::render() {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer); // Clear Screen
   // C++ Unique Pointers, References and Ownership
-  if (pixels.size() < max_pixels) {
-    Pixel pixel((rand() % (SCREEN_WIDTH + 1)), (rand() % (SCREEN_HEIGHT + 1)));
-    red++;
-    pixels.push_back(pixel);
-  }
-  std::cout << "Red[" << red << "] Green[" << green << "]\r";
+  std::cout << "Red[" << red << "] Green[" << green << "]"
+            << "Total[" << total << "]\r";
 
   for (auto &p : pixels) {
     p.render(renderer);
