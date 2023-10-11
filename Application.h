@@ -3,8 +3,8 @@
 
 // Version Number
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 3
-#define VERSION_PATCH 0
+#define VERSION_MINOR 4
+#define VERSION_PATCH
 #define VERSION_ALT
 #define STR_HELPER(x) #x // convert to fit window title
 #define STR(x) STR_HELPER(x)
@@ -39,67 +39,37 @@ class Physics;
 
 class Pixel {
 public:
+  bool isEmpty;
   int life = rand() % 8640;
-  int clean = rand() % 8640;
+  int clean = 60;
   int x, y;
   int l = rand() % 2;
   int sway = 0;
   bool done = false;
-  SDL_Renderer *renderer;
-  Pixel(int posX, int posY, SDL_Renderer *render) {
+  Pixel() { isEmpty = true; }
+  Pixel(int posX, int posY) {
     x = posX;
     y = posY;
-    renderer = render;
+    isEmpty = false;
   }
   void setX(int newX) { x = newX; }
   void setY(int newY) { y = newY; }
   void setDone(bool newDone) { done = newDone; }
+  void setEmpty(bool newEmpty) { isEmpty = newEmpty; }
   int getX() { return x; }
   int getY() { return y; }
   int getLife() { return life; }
   bool getDone() { return done; }
-  void render() {
-    if (life <= 0) {
-      SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-    } else {
-      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    }
-    SDL_RenderDrawPoint(renderer, x, y);
-  }
-  void update() {
-    if (life > 0) {
-      if (sway >= 60) {
-        l = rand() % 2;
-        sway = 0;
-      }
-      sway++;
-      int f = rand() % 2;
-      switch (f) {
-      case (0):
-        x = x + l;
-        break;
-      case (1):
-        x = x - l;
-        break;
-      }
-      life--;
-    } else {
-      if (clean > 0) {
-        clean--;
-      } else {
-        if (y != SCREEN_HEIGHT - 1) {
-          y++;
-        }
-      }
-    }
-  }
+  bool checkEmpty() { return isEmpty; }
+  void render(SDL_Renderer *renderer);
+  void update();
 };
 
 class Application {
 public:
   const char *windowTitle =
       "C23 Engine: Pixel Simulations v." STR(VERSION_MAJOR) "." STR(
-          VERSION_MINOR) "." STR(VERSION_PATCH) STR(VERSION_ALT) " FPS:";
+          VERSION_MINOR) STR(VERSION_PATCH) STR(VERSION_ALT) " FPS:";
   Application();
   ~Application();
 
@@ -115,6 +85,9 @@ public:
   void setSurface(SDL_Surface *new_surface) { surface = new_surface; }
   void setRenderer(SDL_Renderer *new_renderer) { renderer = new_renderer; }
 
+  // Check collisions between pixels on this frame
+  void checkPixelCollisions();
+
   // Events
   bool init();
   void handleEvents();
@@ -124,7 +97,7 @@ public:
   bool running() { return gameRunning; }
 
   // Getters
-  // Player* getPlayer();
+  // const std::vector<Pixel> &getPixels() const { return pixels; }
 
   // Text Events
   void createText(const char *text, int x, int y);
@@ -133,6 +106,7 @@ public:
   // Pixel Stats
   int red = 0;
   int green = 0;
+  const int max_pixels = 2023;
 
   // Constants for reference
 
@@ -155,6 +129,9 @@ private:
   SDL_Surface *surface_temp = NULL;
 
   Terrain *terrain_gen = nullptr; // Terrain Generation
+
+  // Screen
+  Pixel screen[SCREEN_WIDTH][SCREEN_HEIGHT];
 
   // Pixels
   std::vector<Pixel> pixels;

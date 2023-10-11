@@ -2,6 +2,47 @@
 
 // Upgrade to C++ 11
 
+// Pixels
+void Pixel::render(SDL_Renderer *renderer) {
+  if (life <= 0) {
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+  } else {
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+  }
+  SDL_RenderDrawPoint(renderer, x, y);
+}
+void Pixel::update() {
+  if (life > 0) {
+    if (sway >= 60) {
+      l = rand() % 3;
+      sway = 0;
+    }
+    sway++;
+    int f = rand() % 2;
+    switch (f) {
+    case (0):
+      if ((x + l) < SCREEN_WIDTH) {
+        x = x + l;
+      }
+      break;
+    case (1):
+      if ((x - l) >= 0) {
+        x = x - l;
+      }
+      break;
+    }
+    life--;
+  } else {
+    if (clean > 0) {
+      clean--;
+    } else {
+      if (y != SCREEN_HEIGHT - 1) {
+        y++;
+      }
+    }
+  }
+}
+
 #ifdef _WIN32
 #else
 uint32_t linux_tick() {
@@ -23,6 +64,11 @@ Application::Application() {
   std::cout << "-----Application Created\n";
   gameRunning = true;
   frameCount = 0;
+  for (int i = 0; i < SCREEN_WIDTH; i++) {
+    for (int j = 0; j < SCREEN_HEIGHT; j++) {
+      screen[i][j] = Pixel();
+    }
+  }
 // Windows and Linux Definitions
 #ifdef _WIN32
   startTime = GetTickCount();
@@ -56,7 +102,8 @@ bool Application::init() {
           SDL_CreateRenderer(window, -1,
                              SDL_RENDERER_PRESENTVSYNC |
                                  SDL_RENDERER_ACCELERATED); // Create renderer
-      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0); // Set clear color to white
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0,
+                             0); // Set clear color to white
 
       if (!renderer) {
         throw "Renderer creation failed.";
@@ -79,6 +126,7 @@ bool Application::init() {
   }
 }
 
+// Other Application Functions
 void Application::handleEvents() {
   SDL_Event event;
   SDL_PollEvent(&event);
@@ -132,12 +180,35 @@ void Application::handleEvents() {
 void Application::update() // Update Logic
 {
   // Logic --> Physics --> Render
-  for (auto &p : pixels) {
-    p.update();
-    if ((p.getLife() == 0) && !p.getDone()) { // If pixel done
-      p.setDone(true);
-      green++;
-      red--;
+  checkPixelCollisions();
+}
+
+void Application::checkPixelCollisions() {
+  for (auto &p1 : pixels) { // O(N) collision checking
+    int old_x = p1.getX();
+    int old_y = p1.getY();
+
+    p1.update(); // Update Pixel Position x and y
+
+    int x = p1.getX();
+    int y = p1.getY();
+
+    // Screen bounds check
+    if (((0 <= x) && (x < SCREEN_WIDTH) && (0 <= y) && (y < SCREEN_HEIGHT)) &&
+        ((0 <= old_x) && (old_x < SCREEN_WIDTH) && (0 <= old_y) &&
+         (old_y < SCREEN_HEIGHT))) {
+      screen[old_x][old_y].setEmpty(true);
+      if (screen[x][y].checkEmpty()) { // Check if new position is empty
+        screen[x][y] = p1;
+      } else { // If there is a pixel there set both lifes to 0 (COLLIDE)
+        p1.life = 0;
+        screen[x][y].life = 0;
+      }
+      if ((p1.getLife() == 0) && !p1.getDone()) { // If pixel done
+        p1.setDone(true);
+        green++;
+        red--;
+      }
     }
   }
 }
@@ -146,15 +217,19 @@ void Application::render() {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer); // Clear Screen
   // C++ Unique Pointers, References and Ownership
-  Pixel pixel((rand() % SCREEN_WIDTH + 1), (rand() % SCREEN_HEIGHT + 1),
-              renderer);
-  red++;
-  std::cout << "Red[" << red << "] Green[" << green << "]\r";
-  pixels.push_back(pixel);
-  for (auto &p : pixels) {
-    p.render();
+  if (pixels.size() < max_pixels) {
+    Pixel pixel((rand() % (SCREEN_WIDTH + 1)), (rand() % (SCREEN_HEIGHT + 1)));
+    red++;
+    pixels.push_back(pixel);
   }
+  std::cout << "Red[" << red << "] Green[" << green << "]\r";
+
+  for (auto &p : pixels) {
+    p.render(renderer);
+  }
+  // std::cout << "Try\n";
   SDL_RenderPresent(renderer);
+  // std::cout << "Pre\n";
 }
 
 void Application::clean() {
