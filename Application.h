@@ -3,7 +3,7 @@
 
 // Version Number
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 6
+#define VERSION_MINOR 7
 #define VERSION_PATCH
 #define VERSION_ALT
 #define STR_HELPER(x) #x // convert to fit window title
@@ -23,6 +23,7 @@
 #include <iostream>
 #include <json/json.h>
 #include <memory>
+#include <random>
 #include <vector>
 
 // PreProcessor Declerations
@@ -43,33 +44,51 @@ class Physics;
 
 class Pixel {
 public:
+  bool leader;
   bool isEmpty;
-  // int life = rand() % 8640;
-  int life = INT_MAX;
+  SDL_Color color;
+  int life = rand() % 8640;
+  // int life = INT_MAX;
   int clean = 60;
   int x, y;
   int l = (rand() % 2) + 1;
   int sway = 0;
   bool done = false;
   Pixel() { isEmpty = true; }
-  Pixel(int posX, int posY) {
-    x = posX;
-    y = posY;
-    isEmpty = false;
-  }
+  Pixel(int posX, int posY);
   void setX(int newX) { x = newX; }
   void setY(int newY) { y = newY; }
   void setDone(bool newDone) { done = newDone; }
   void setEmpty(bool newEmpty) { isEmpty = newEmpty; }
+  void setLeader(bool newLeader) { leader = newLeader; }
+  void setColor(SDL_Color newColor) { color = newColor; }
   int getX() { return x; }
   int getY() { return y; }
   int getLife() { return life; }
   bool getDone() { return done; }
   bool checkEmpty() { return isEmpty; }
+  bool isLeader() { return leader; }
   int detectScare();
   void moveDirection(int i); // Move a specific inputted direction
   void render(SDL_Renderer *renderer);
   void update();
+
+private:
+  static std::random_device rd;
+  static std::default_random_engine generator;
+  static std::bernoulli_distribution distribution;
+};
+
+class Physics {
+public:
+  int boid_seperation(Pixel *p, std::vector<Pixel> *pixels);
+  int boid_alignment(Pixel *p, std::vector<Pixel> *pixels);
+  int boid_cohesion(Pixel *p, std::vector<Pixel> *pixels);
+  void boid_update(Pixel *p, std::vector<Pixel> *pixels);
+
+private:
+  std::vector<int> leader_position = {0, 0};
+  int num_leaders = 0;
 };
 
 class Application {
@@ -119,13 +138,13 @@ public:
   int red = 0;
   int green = 0;
   int total = 0;
-  const int max_pixels = 1000;
+  const int max_pixels = 50;
 
   // Constants for reference
 
   // Debug and Toggles
   bool debugMode = false;
-  bool collisionMode = false;
+  bool collisionMode = true;
 
   int textureWidth = 1920;
   int textureHeight = 32;

@@ -3,12 +3,18 @@
 // Upgrade to C++ 11
 
 // Pixels
+std::random_device Pixel::rd;
+std::default_random_engine Pixel::generator(Pixel::rd());
+std::bernoulli_distribution Pixel::distribution(0.31);
+Pixel::Pixel(int posX, int posY) {
+  x = posX;
+  y = posY;
+  isEmpty = false;
+  leader = distribution(generator);
+  color = leader ? SDL_Color{255, 255, 0, 255} : SDL_Color{255, 0, 0, 255};
+}
 void Pixel::render(SDL_Renderer *renderer) {
-  if (life <= 0) {
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-  } else {
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-  }
+  SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
   SDL_RenderDrawPoint(renderer, x, y);
 }
 int Pixel::detectScare() {
@@ -64,6 +70,9 @@ void Pixel::moveDirection(int i) {
   }
 }
 void Pixel::update() {
+  if (life <= 0) {
+    color = {0, 255, 0, 255}; // Green
+  }
   if (life > 0) {
     if (sway >= 60) {
       l = (rand() % 2) + 1;
@@ -71,7 +80,7 @@ void Pixel::update() {
     }
     sway++;
     int f = detectScare();
-    moveDirection(f);
+    // moveDirection(f);
     life--;
   } else {
     if (clean > 0) {
@@ -83,6 +92,48 @@ void Pixel::update() {
     }
   }
 }
+
+int Physics::boid_seperation(Pixel *p, std::vector<Pixel> *pixels) {
+  // std::cout << "Seperate\n";
+  return 0;
+}
+int Physics::boid_alignment(Pixel *p, std::vector<Pixel> *pixels) {
+  // std::cout << "Alignment\n";
+  return 0;
+}
+int Physics::boid_cohesion(Pixel *p, std::vector<Pixel> *pixels) {
+  // std::cout << "Cohesion\n";
+  if (p->isLeader()) {
+    // if (leader_position[0] == 0 && leader_position[1] == 0) {
+    leader_position[0] = p->getX();
+    leader_position[1] = p->getY();
+    num_leaders++;
+    // }
+  } else if (p->getLife() > 0) {
+    if ((leader_position[0] - 1) > p->getX()) {
+      p->setX(p->getX() + 1);
+    } else {
+      p->setX(p->getX() - 1);
+    }
+    if ((leader_position[1] - 1) > p->getY()) {
+      p->setY(p->getY() + 1);
+    } else {
+      p->setY(p->getY() - 1);
+    }
+  }
+  if (num_leaders > 0) {
+    // leader_position[0] = leader_position[0] / num_leaders;
+    // leader_position[1] = leader_position[1] / num_leaders;
+    // std::cout << leader_position[0] << "," << leader_position[1] <<
+    // std::endl;
+  }
+  return 0;
+}
+void Physics::boid_update(Pixel *p, std::vector<Pixel> *pixels) {
+  boid_seperation(p, pixels);
+  boid_alignment(p, pixels);
+  boid_cohesion(p, pixels);
+};
 
 #ifdef _WIN32
 #else
@@ -151,6 +202,9 @@ bool Application::init() {
       }
 
       std::cout << "-----Renderer Created" << std::endl;
+
+      std::cout << "-----Start Physics Engine\n";
+      phys_eng = new Physics();
 
       // Loading texture memory
       SDL_Texture *temp_tex = NULL;
@@ -230,6 +284,7 @@ void Application::update() // Update Logic
   spawnPixel();
   for (auto &p : pixels) {
     p.detectScare();
+    phys_eng->boid_update(&p, &pixels);
   }
   checkPixelCollisions();
 }
@@ -239,6 +294,8 @@ void Application::spawnPixel() {
     int x, y;
     Uint32 mouseCords = SDL_GetMouseState(&x, &y);
     Pixel pixel(x, y);
+    pixel.setLeader(false); // Left clicked pixels are not leaders
+    pixel.setColor(SDL_Color{255, 0, 0, 255});
     pixels.push_back(pixel);
     red++;
     total++;
