@@ -3,7 +3,7 @@
 
 // Version Number
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 7
+#define VERSION_MINOR 8
 #define VERSION_PATCH
 #define VERSION_ALT
 #define STR_HELPER(x) #x // convert to fit window title
@@ -12,10 +12,10 @@
 // Screen Definitions
 // #define SCREEN_WIDTH 1920
 // #define SCREEN_HEIGHT 1080
-// #define SCREEN_WIDTH 1600
-// #define SCREEN_HEIGHT 900
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 1600
+#define SCREEN_HEIGHT 900
+// #define SCREEN_WIDTH 800
+// #define SCREEN_HEIGHT 600
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -47,10 +47,11 @@ public:
   bool leader;
   bool isEmpty;
   SDL_Color color;
-  int life = rand() % 8640;
+  int life = rand() % INT_MAX;
   // int life = INT_MAX;
   int clean = 60;
-  int x, y;
+  int cleanup = 120;
+
   int l = (rand() % 2) + 1;
   int sway = 0;
   bool done = false;
@@ -65,15 +66,19 @@ public:
   int getX() { return x; }
   int getY() { return y; }
   int getLife() { return life; }
-  bool getDone() { return done; }
+  bool isDone() { return done; }
+  int getCleanup() { return cleanup; }
   bool checkEmpty() { return isEmpty; }
   bool isLeader() { return leader; }
   int detectScare();
-  void moveDirection(int i); // Move a specific inputted direction
+  int directionsMoveable(
+      Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]); // returns open direction
+  bool moveDirection(int i); // Move a specific inputted direction
   void render(SDL_Renderer *renderer);
   void update();
 
 private:
+  int x, y;
   static std::random_device rd;
   static std::default_random_engine generator;
   static std::bernoulli_distribution distribution;
@@ -85,6 +90,8 @@ public:
   int boid_alignment(Pixel *p, std::vector<Pixel> *pixels);
   int boid_cohesion(Pixel *p, std::vector<Pixel> *pixels);
   void boid_update(Pixel *p, std::vector<Pixel> *pixels);
+  int getLeaders() { return num_leaders; }
+  void incLeaders() { num_leaders++; }
 
 private:
   std::vector<int> leader_position = {0, 0};
@@ -114,8 +121,8 @@ public:
   void setRenderer(SDL_Renderer *new_renderer) { renderer = new_renderer; }
 
   // Collisions
-  bool checkBounds(int x, int y); // Check if outside of screen
-  void checkPixelCollisions(); // Check collisions between pixels on this frame
+  bool checkBounds(int x, int y);       // Check if outside of screen
+  void checkPixelCollisions(Pixel *p1); // Check collisions
 
   // Pixel Creation
   void spawnPixel();
@@ -138,13 +145,12 @@ public:
   int red = 0;
   int green = 0;
   int total = 0;
-  const int max_pixels = 50;
+  const int max_pixels = 2023;
 
   // Constants for reference
 
   // Debug and Toggles
   bool debugMode = false;
-  bool collisionMode = true;
 
   int textureWidth = 1920;
   int textureHeight = 32;

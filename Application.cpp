@@ -5,7 +5,7 @@
 // Pixels
 std::random_device Pixel::rd;
 std::default_random_engine Pixel::generator(Pixel::rd());
-std::bernoulli_distribution Pixel::distribution(0.31);
+std::bernoulli_distribution Pixel::distribution(0.07);
 Pixel::Pixel(int posX, int posY) {
   x = posX;
   y = posY;
@@ -24,67 +24,114 @@ int Pixel::detectScare() {
   // Mouse Left of Pixel
   if (((x - this->x) > 0) && ((x - this->x) <= 20) &&
       (abs(y - this->y) <= 20)) {
-    return 0;
+    return 2;
   }
   // Mouse Below Pixel
   if (((y - this->y) > 0) && ((y - this->y) <= 20) &&
       (abs(x - this->x) <= 20)) {
-    return 3;
+    return 1;
   }
   // Mouse Right of Pixel
   if (((this->x - x) > 0) && ((this->x - x) <= 20) &&
       (abs(y - this->y) <= 20)) {
-    return 1;
+    return 3;
   }
   // Mouse Above Pixel
   if (((this->y - y) > 0) && ((this->y - y) <= 20) &&
       (abs(x - this->x) <= 20)) {
-    return 2;
+    return 0;
   }
   return 4;
 }
-void Pixel::moveDirection(int i) {
-  switch (i) {
-  case (0): // Move right
-    if ((x + l) < SCREEN_WIDTH) {
-      x = x + l;
+
+int Pixel::directionsMoveable(Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]) {
+  std::deque<std::pair<int, bool>> directions;
+  // Check directions NSEW
+  int scaredDir = detectScare();
+  if ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= (y - 1)) &&
+      ((y - 1) < SCREEN_HEIGHT)) {
+    const std::pair<int, bool> north(0, ((screen[x][y - 1]).checkEmpty()));
+    if (scaredDir != 0) {
+      directions.push_back(north);
     }
-    break;
-  case (1): // Move left
-    if ((x - l) >= 0) {
-      x = x - l;
-    }
-    break;
-  case (2): // Move down
-    if ((y + l) < SCREEN_HEIGHT) {
-      y = y + l;
-    }
-    break;
-  case (3): // Move up
-    if ((y - l) >= 0) {
-      y = y - l;
-    }
-    break;
-  case (4): // Random
-    moveDirection(rand() % 4);
   }
+  if ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= (y + 1)) &&
+      ((y + 1) < SCREEN_HEIGHT)) {
+    const std::pair<int, bool> south(1, ((screen[x][y + 1]).checkEmpty()));
+    if (scaredDir != 1) {
+      directions.push_back(south);
+    }
+  }
+  if ((0 <= (x - 1)) && ((x - 1) < SCREEN_WIDTH) && (0 <= (y)) &&
+      ((y) < SCREEN_HEIGHT)) {
+    const std::pair<int, bool> east(2, ((screen[x - 1][y]).checkEmpty()));
+    if (scaredDir != 2) {
+      directions.push_back(east);
+    }
+  }
+  if ((0 <= (x + 1)) && ((x + 1) < SCREEN_WIDTH) && (0 <= (y)) &&
+      ((y) < SCREEN_HEIGHT)) {
+    const std::pair<int, bool> west(3, ((screen[x + 1][y]).checkEmpty()));
+    if (scaredDir != 3) {
+      directions.push_back(west);
+    }
+  }
+
+  std::vector<int> true_directions;
+  for (auto &d : directions) {
+    if (d.second) {
+      true_directions.push_back(d.first);
+    }
+  }
+  if (true_directions.size() == 0) { // If the pixel cannot move
+    return 4;                        // Code for no moving
+  }
+  const int result = true_directions[rand() % true_directions.size()];
+  return result;
 }
+
+bool Pixel::moveDirection(int i) {
+  switch (i) {
+  case (0): // Move up
+    if ((y - 1) >= 0) {
+      y = y - 1;
+      return true;
+    }
+    break;
+  case (1): // Move down
+    if ((y + 1) < SCREEN_HEIGHT) {
+      y = y + 1;
+      return true;
+    }
+    break;
+  case (2): // Move left
+    if ((x - 1) >= 0) {
+      x = x - 1;
+      return true;
+    }
+    break;
+  case (3): // Move right
+    if ((x + 1) < SCREEN_WIDTH) {
+      x = x + 1;
+      return true;
+    }
+    break;
+  case (4): // Cant move (Do nothing)
+    break;
+  }
+  return false;
+}
+
 void Pixel::update() {
   if (life <= 0) {
     color = {0, 255, 0, 255}; // Green
   }
   if (life > 0) {
-    if (sway >= 60) {
-      l = (rand() % 2) + 1;
-      sway = 0;
-    }
-    sway++;
-    int f = detectScare();
-    // moveDirection(f);
     life--;
   } else {
     if (clean > 0) {
       clean--;
+      cleanup--;
     } else {
       if (y != SCREEN_HEIGHT - 1) {
         y++;
@@ -107,15 +154,14 @@ int Physics::boid_cohesion(Pixel *p, std::vector<Pixel> *pixels) {
     // if (leader_position[0] == 0 && leader_position[1] == 0) {
     leader_position[0] = p->getX();
     leader_position[1] = p->getY();
-    num_leaders++;
     // }
   } else if (p->getLife() > 0) {
-    if ((leader_position[0] - 1) > p->getX()) {
-      p->setX(p->getX() + 1);
+    if ((leader_position[0]) > p->getX() + 1) { // If leader is on Right
+      p->setX(p->getX() + 1);                   // Move 1 to leader
     } else {
       p->setX(p->getX() - 1);
     }
-    if ((leader_position[1] - 1) > p->getY()) {
+    if ((leader_position[1]) > p->getY() + 1) {
       p->setY(p->getY() + 1);
     } else {
       p->setY(p->getY() - 1);
@@ -257,9 +303,6 @@ void Application::handleEvents() {
     case SDLK_d: {
       break;
     }
-    case SDLK_c: {
-      collisionMode = collisionMode ? false : true;
-    }
     // Debug Mode Toggle
     case SDLK_BACKQUOTE: {
       debugMode = (debugMode) ? false : true;
@@ -283,10 +326,12 @@ void Application::update() // Update Logic
   // Logic --> Physics --> Render
   spawnPixel();
   for (auto &p : pixels) {
-    p.detectScare();
-    phys_eng->boid_update(&p, &pixels);
+    if (!p.isDone()) {
+      checkPixelCollisions(&p);
+      // phys_eng->boid_update(&p, &pixels);
+    }
+    p.update();
   }
-  checkPixelCollisions();
 }
 
 void Application::spawnPixel() {
@@ -300,10 +345,13 @@ void Application::spawnPixel() {
     red++;
     total++;
   } else if (pixels.size() < max_pixels) {
-    Pixel pixel((rand() % (SCREEN_WIDTH + 1)), (rand() % (SCREEN_HEIGHT + 1)));
+    Pixel pixel((SCREEN_WIDTH / 2), (SCREEN_HEIGHT / 2));
     pixels.push_back(pixel);
     red++;
     total++;
+    if (pixel.isLeader()) {
+      phys_eng->incLeaders();
+    }
   }
 }
 
@@ -311,32 +359,25 @@ bool Application::checkBounds(int x, int y) {
   return ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= y) && (y < SCREEN_HEIGHT));
 }
 
-void Application::checkPixelCollisions() {
-  for (auto &p1 : pixels) { // O(N) collision checking
-    int old_x = p1.getX();
-    int old_y = p1.getY();
+void Application::checkPixelCollisions(Pixel *p1) {
+  int old_x = p1->getX();
+  int old_y = p1->getY();
+  p1->moveDirection(p1->directionsMoveable(screen));
+  int x = p1->getX();
+  int y = p1->getY();
+  // std::cout << "[" << old_x << "," << old_y << "]"
+  //           << "[" << x << "," << y << "]" << std::endl;
 
-    p1.update(); // Update Pixel Position x and y
-
-    int x = p1.getX();
-    int y = p1.getY();
-
-    // Screen bounds check
-    if (checkBounds(x, y) && checkBounds(old_x, old_y)) {
-      screen[old_x][old_y].setEmpty(true);
-      if (screen[x][y].checkEmpty()) { // Check if new position is empty
-        screen[x][y] = p1;
-      } else { // If there is a pixel there set both lifes to 0 (COLLIDE)
-        if (collisionMode) {
-          p1.life = 0;
-          screen[x][y].life = 0;
-        }
-      }
-      if ((p1.getLife() == 0) && !p1.getDone()) { // If pixel done
-        p1.setDone(true);
-        green++;
-        red--;
-      }
+  // Screen bounds check
+  if (checkBounds(x, y) && checkBounds(old_x, old_y)) {
+    screen[old_x][old_y].setEmpty(true);
+    if (screen[x][y].checkEmpty()) { // Check if new position is empty
+      screen[x][y] = *p1;
+    }
+    if ((p1->getLife() == 0) && !p1->isDone()) { // If pixel done
+      p1->setDone(true);
+      green++;
+      red--;
     }
   }
 }
@@ -345,8 +386,7 @@ void Application::render() {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer); // Clear Screen
   // C++ Unique Pointers, References and Ownership
-  std::cout << "Collision Mode:" << collisionMode << " Red[" << red
-            << "] Green[" << green << "]"
+  std::cout << "Red[" << red << "] Green[" << green << "]"
             << "Total[" << total << "]\r";
 
   for (auto &p : pixels) {
