@@ -3,7 +3,7 @@
 
 // Version Number
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 8
+#define VERSION_MINOR 9
 #define VERSION_PATCH
 #define VERSION_ALT
 #define STR_HELPER(x) #x // convert to fit window title
@@ -46,6 +46,7 @@ class Pixel {
 public:
   bool leader;
   bool isEmpty;
+  bool landed = false;
   SDL_Color color;
   int life = rand() % INT_MAX;
   // int life = INT_MAX;
@@ -65,7 +66,9 @@ public:
   void setColor(SDL_Color newColor) { color = newColor; }
   int getX() { return x; }
   int getY() { return y; }
+  void fall() { y += 1; }
   int getLife() { return life; }
+  bool getLanded() { return landed; }
   bool isDone() { return done; }
   int getCleanup() { return cleanup; }
   bool checkEmpty() { return isEmpty; }

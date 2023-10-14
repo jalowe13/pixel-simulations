@@ -132,10 +132,6 @@ void Pixel::update() {
     if (clean > 0) {
       clean--;
       cleanup--;
-    } else {
-      if (y != SCREEN_HEIGHT - 1) {
-        y++;
-      }
     }
   }
 }
@@ -320,17 +316,41 @@ void Application::handleEvents() {
     }
   }
 }
-
+bool Application::checkBounds(int x, int y) {
+  return ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= y) && (y < SCREEN_HEIGHT));
+}
 void Application::update() // Update Logic
 {
   // Logic --> Physics --> Render
   spawnPixel();
   for (auto &p : pixels) {
+    bool boundCheck = checkBounds(p.getX(), p.getY());
+    bool belowBoundCheck = checkBounds(p.getX(), p.getY() + 1);
+    Pixel *p_2 = &screen[p.getX()][p.getY() + 1];
     if (!p.isDone()) {
       checkPixelCollisions(&p);
+      p.update();
       // phys_eng->boid_update(&p, &pixels);
     }
-    p.update();
+    // Else if still in bounds on my pixel and next pixel
+    else if (boundCheck && belowBoundCheck) {
+      if (!p.landed) {
+        if (p_2->isDone()) {
+          screen[p.getX()][p.getY()] = p;
+          p.landed = true;
+          // std::cout << "Landed on top" << p.getX() << std::endl;
+        } else {
+          p.fall();
+        }
+      }
+    }
+
+    // Cant check next pixel, must be on the ground condition
+    if ((p.getY() == (SCREEN_HEIGHT - 1)) && !p.landed && p.isDone()) {
+      screen[p.getX()][p.getY()] = p;
+      p.landed = true;
+      // std::cout << "Landed" << p.getX() << std::endl;
+    }
   }
 }
 
@@ -345,7 +365,7 @@ void Application::spawnPixel() {
     red++;
     total++;
   } else if (pixels.size() < max_pixels) {
-    Pixel pixel((SCREEN_WIDTH / 2), (SCREEN_HEIGHT / 2));
+    Pixel pixel(((SCREEN_WIDTH / 2 + 1)), (rand() % (SCREEN_HEIGHT + 1)));
     pixels.push_back(pixel);
     red++;
     total++;
@@ -353,10 +373,6 @@ void Application::spawnPixel() {
       phys_eng->incLeaders();
     }
   }
-}
-
-bool Application::checkBounds(int x, int y) {
-  return ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= y) && (y < SCREEN_HEIGHT));
 }
 
 void Application::checkPixelCollisions(Pixel *p1) {
