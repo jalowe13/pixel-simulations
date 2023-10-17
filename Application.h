@@ -3,7 +3,7 @@
 
 // Version Number
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 9
+#define VERSION_MINOR 10
 #define VERSION_PATCH
 #define VERSION_ALT
 #define STR_HELPER(x) #x // convert to fit window title
@@ -12,10 +12,10 @@
 // Screen Definitions
 // #define SCREEN_WIDTH 1920
 // #define SCREEN_HEIGHT 1080
-#define SCREEN_WIDTH 1600
-#define SCREEN_HEIGHT 900
-// #define SCREEN_WIDTH 800
-// #define SCREEN_HEIGHT 600
+// #define SCREEN_WIDTH 1600
+// #define SCREEN_HEIGHT 900
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -74,6 +74,8 @@ public:
   bool checkEmpty() { return isEmpty; }
   bool isLeader() { return leader; }
   int detectScare();
+  bool directionMoveablePureCheck(Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT],
+                                  int direction);
   int directionsMoveable(
       Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]); // returns open direction
   bool moveDirection(int i); // Move a specific inputted direction
@@ -91,18 +93,29 @@ class Physics {
 public:
   int boid_seperation(Pixel *p, std::vector<Pixel> *pixels);
   int boid_alignment(Pixel *p, std::vector<Pixel> *pixels);
-  int boid_cohesion(Pixel *p, std::vector<Pixel> *pixels);
-  void boid_update(Pixel *p, std::vector<Pixel> *pixels);
+  int boid_cohesion(Pixel *p, std::vector<Pixel> *pixels,
+                    Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]);
+  void boid_update(Pixel *p, std::vector<Pixel> *pixels,
+                   Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]);
+  void setLeaderPosX(int newX) { leader_position[0] = newX; }
+  void setLeaderPosY(int newY) { leader_position[1] = newY; }
   int getLeaders() { return num_leaders; }
   void incLeaders() { num_leaders++; }
+  void addPixelLeader(const Pixel &pixel) { pixel_leaders.push_back(pixel); }
+  Pixel *getRandomPixelLeader() {
+    return &pixel_leaders[rand() % pixel_leaders.size()];
+  }
+  int getLeaderAmount() { return pixel_leaders.size(); }
 
 private:
   std::vector<int> leader_position = {0, 0};
+  std::vector<Pixel> pixel_leaders;
   int num_leaders = 0;
 };
 
 class Application {
 public:
+  Application *app = NULL; // Pointer to the app
   const char *windowTitle =
       "C23 Engine: Pixel Simulations v." STR(VERSION_MAJOR) "." STR(
           VERSION_MINOR) STR(VERSION_PATCH) STR(VERSION_ALT) " FPS:";
@@ -128,7 +141,7 @@ public:
   void checkPixelCollisions(Pixel *p1); // Check collisions
 
   // Pixel Creation
-  void spawnPixel();
+  void spawnPixel(Physics *phys_eng);
 
   // Events
   bool init();
@@ -148,7 +161,7 @@ public:
   int red = 0;
   int green = 0;
   int total = 0;
-  const int max_pixels = 2023;
+  const int max_pixels = 10000;
 
   // Constants for reference
 
@@ -165,6 +178,7 @@ public:
 
 private:
   // Pointers
+
   SDL_Window *window = NULL;         // Pointer to Window
   SDL_Renderer *renderer = NULL;     // Render graphics
   SDL_Surface *surface = NULL;       // Pointer to Surface in Window

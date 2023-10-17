@@ -5,7 +5,7 @@
 // Pixels
 std::random_device Pixel::rd;
 std::default_random_engine Pixel::generator(Pixel::rd());
-std::bernoulli_distribution Pixel::distribution(0.07);
+std::bernoulli_distribution Pixel::distribution(0.01);
 Pixel::Pixel(int posX, int posY) {
   x = posX;
   y = posY;
@@ -42,6 +42,37 @@ int Pixel::detectScare() {
     return 0;
   }
   return 4;
+}
+
+bool Pixel::directionMoveablePureCheck(
+    Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT], int direction) {
+  switch (direction) {
+  case (0): // North
+    if ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= (y - 1)) &&
+        ((y - 1) < SCREEN_HEIGHT)) {
+      return true;
+    }
+    break;
+  case (1): // South
+    if ((0 <= x) && (x < SCREEN_WIDTH) && (0 <= (y + 1)) &&
+        ((y + 1) < SCREEN_HEIGHT)) {
+      return true;
+    }
+    break;
+  case (2): // East
+    if ((0 <= (x - 1)) && ((x - 1) < SCREEN_WIDTH) && (0 <= (y)) &&
+        ((y) < SCREEN_HEIGHT)) {
+      return true;
+    }
+    break;
+  case (3): // West
+    if ((0 <= (x + 1)) && ((x + 1) < SCREEN_WIDTH) && (0 <= (y)) &&
+        ((y) < SCREEN_HEIGHT)) {
+      return true;
+    }
+    break;
+  }
+  return false;
 }
 
 int Pixel::directionsMoveable(Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]) {
@@ -144,23 +175,27 @@ int Physics::boid_alignment(Pixel *p, std::vector<Pixel> *pixels) {
   // std::cout << "Alignment\n";
   return 0;
 }
-int Physics::boid_cohesion(Pixel *p, std::vector<Pixel> *pixels) {
+int Physics::boid_cohesion(Pixel *p, std::vector<Pixel> *pixels,
+                           Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]) {
   // std::cout << "Cohesion\n";
-  if (p->isLeader()) {
-    // if (leader_position[0] == 0 && leader_position[1] == 0) {
-    leader_position[0] = p->getX();
-    leader_position[1] = p->getY();
-    // }
-  } else if (p->getLife() > 0) {
+  if (p->getLife() > 0) {
     if ((leader_position[0]) > p->getX() + 1) { // If leader is on Right
-      p->setX(p->getX() + 1);                   // Move 1 to leader
-    } else {
-      p->setX(p->getX() - 1);
+      if (p->directionMoveablePureCheck(screen, 3)) {
+        p->setX(p->getX() + 1); // Move 1 to leader
+      }
+    } else if ((leader_position[0]) < p->getX() - 1) { // If leader is on Left
+      if (p->directionMoveablePureCheck(screen, 2)) {
+        p->setX(p->getX() - 1); // Move 1 to leader
+      }
     }
-    if ((leader_position[1]) > p->getY() + 1) {
-      p->setY(p->getY() + 1);
-    } else {
-      p->setY(p->getY() - 1);
+    if ((leader_position[0]) > p->getY() + 1) { // If leader is Below
+      if (p->directionMoveablePureCheck(screen, 1)) {
+        p->setY(p->getY() + 1); // Move 1 to leader
+      }
+    } else if ((leader_position[0]) < p->getX() - 1) { // If leader is Above
+      if (p->directionMoveablePureCheck(screen, 0)) {
+        p->setY(p->getY() - 1); // Move 1 to leader
+      }
     }
   }
   if (num_leaders > 0) {
@@ -171,10 +206,11 @@ int Physics::boid_cohesion(Pixel *p, std::vector<Pixel> *pixels) {
   }
   return 0;
 }
-void Physics::boid_update(Pixel *p, std::vector<Pixel> *pixels) {
-  boid_seperation(p, pixels);
-  boid_alignment(p, pixels);
-  boid_cohesion(p, pixels);
+void Physics::boid_update(Pixel *p, std::vector<Pixel> *pixels,
+                          Pixel (&screen)[SCREEN_WIDTH][SCREEN_HEIGHT]) {
+  // boid_seperation(p, pixels);
+  // boid_alignment(p, pixels);
+  boid_cohesion(p, pixels, screen);
 };
 
 #ifdef _WIN32
@@ -322,15 +358,22 @@ bool Application::checkBounds(int x, int y) {
 void Application::update() // Update Logic
 {
   // Logic --> Physics --> Render
-  spawnPixel();
+  spawnPixel(phys_eng);
   for (auto &p : pixels) {
     bool boundCheck = checkBounds(p.getX(), p.getY());
     bool belowBoundCheck = checkBounds(p.getX(), p.getY() + 1);
     Pixel *p_2 = &screen[p.getX()][p.getY() + 1];
     if (!p.isDone()) {
       checkPixelCollisions(&p);
+      if (!p.isLeader()) {
+        // phys_eng->boid_update(&p, &pixels, screen);
+      } else {
+        if (!p.isDone()) {
+          phys_eng->setLeaderPosX(p.getX());
+          phys_eng->setLeaderPosY(p.getY());
+        }
+      }
       p.update();
-      // phys_eng->boid_update(&p, &pixels);
     }
     // Else if still in bounds on my pixel and next pixel
     else if (boundCheck && belowBoundCheck) {
@@ -354,7 +397,7 @@ void Application::update() // Update Logic
   }
 }
 
-void Application::spawnPixel() {
+void Application::spawnPixel(Physics *phys_eng) {
   if (mouseDown) {
     int x, y;
     Uint32 mouseCords = SDL_GetMouseState(&x, &y);
@@ -365,13 +408,18 @@ void Application::spawnPixel() {
     red++;
     total++;
   } else if (pixels.size() < max_pixels) {
-    Pixel pixel(((SCREEN_WIDTH / 2 + 1)), (rand() % (SCREEN_HEIGHT + 1)));
-    pixels.push_back(pixel);
+    Pixel pixel((rand() % (SCREEN_WIDTH + 1)), (rand() % (SCREEN_HEIGHT + 1)));
+    if (phys_eng->getLeaders() == 0) {
+      pixel.setLeader(true);
+      pixel.setColor(SDL_Color{255, 255, 0, 255});
+      phys_eng->addPixelLeader(pixel);
+    }
     red++;
     total++;
     if (pixel.isLeader()) {
       phys_eng->incLeaders();
     }
+    pixels.push_back(pixel);
   }
 }
 
